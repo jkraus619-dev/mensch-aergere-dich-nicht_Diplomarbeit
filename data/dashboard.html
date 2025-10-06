@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ludo ESP32 - Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <ul>
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="#">Profil</a></li>
+      <li><a href="#">Statistiken</a></li>
+      <li style="margin-left:auto;"><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <!-- DASHBOARD CONTENT -->
+  <div class="dashboard-container">
+    <h1>Willkommen <span id="userDisplay"></span> 🎲</h1>
+    <h2>Statistiken</h2>
+    <ul>
+      <li>Total Spiele: <span id="totalGames">0</span></li>
+      <li>Gewonnen: <span id="wonGames">0</span></li>
+      <li>Verloren: <span id="lostGames">0</span></li>
+    </ul>
+
+    <!-- Spiel starten Button -->
+    <button id="startGameBtn" onclick="startGame()">Spiel starten</button>
+
+    <!-- WebSocket Status -->
+    <div id="wsLog" class="log" style="margin-top:20px; color:blue;">WebSocket: nicht verbunden</div>
+  </div>
+</body>
+</html>

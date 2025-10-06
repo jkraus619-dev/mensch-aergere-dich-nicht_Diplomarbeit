@@ -1,0 +1,155 @@
+/* GLOBAL */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(135deg, #e0e0e0, #c0c0c0);
+  color: #333;
+  min-height: 100vh;
+}
+
+/* CONTAINER */
+.container {
+  max-width: 400px;
+  margin: 5vh auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+/* TITEL */
+h1 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+
+/* INPUT FELDER */
+input[type="text"], input[type="password"] {
+  width: 80%;
+  padding: 0.8rem;
+  margin: 0.5rem 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* BUTTONS */
+button {
+  width: 80%;
+  padding: 0.8rem;
+  margin-top: 1.2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fff;
+  background: #186e0e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+button:hover {
+  background: #0c5313;
+}
+
+/* LINKS */
+.link {
+  display: block;
+  margin-top: 1rem;
+  color: #000000;
+  text-decoration: underline;
+  font-size: 0.95rem;
+}
+
+/* STATUS / FEHLERMELDUNG */
+#log, #rlog {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  min-height: 1.2em;
+}
+
+/* DASHBOARD */
+.dashboard-container {
+  max-width: 500px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  text-align: center;
+}
+.dashboard-container h2 {
+  margin-top: 1rem;
+}
+
+/* NAVBAR */
+.navbar {
+  width: 100%;
+  background: #186e0e;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+.navbar ul {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+.navbar ul li {
+  margin-right: 1.5rem;
+}
+.navbar ul li a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+.navbar ul li a:hover {
+  text-decoration: underline;
+}
+
+/* STATISTIKEN */
+ul {
+  list-style: none;
+  padding: 0;
+}
+ul li {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+/* DASHBOARD BUTTON */
+#startGameBtn {
+  margin-top: 1.5rem;
+  width: 60%;
+}
+
+/* LOG / WEBSOCKET STATUS */
+.log {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: blue;
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+  .container, .dashboard-container {
+    margin: 1rem;
+    padding: 1rem;
+  }
+  h1 { font-size: 1.5rem; }
+  input[type="text"], input[type="password"], button { width: 100%; font-size: 1rem; }
+  .navbar ul { flex-wrap: wrap; }
+  .navbar ul li { margin-right: 1rem; margin-top: 0.5rem; }
+}
