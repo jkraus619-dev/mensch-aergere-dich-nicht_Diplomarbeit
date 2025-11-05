@@ -5,16 +5,35 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 
+#include "battery_adc.h"        // NEU
+#include "battery_WS2812B.h"     // NEU
+
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 const char* ssid = "Ludo_ESP32";
 const char* password = "12345678";
 
+static unsigned long lastBatMs = 0;
+
 void broadcastJson(const JsonDocument &doc) {
   String out;
   serializeJson(doc, out);
   ws.textAll(out);
+}
+
+static void sendBatterySnapshot() {
+  float v = batteryReadVoltage();
+  int pct = batteryPercent(v);
+  batteryLedsShowPercent(pct);
+  Serial.printf("Batterie: %.2f V (%d%%)\n", v, pct);
+
+  StaticJsonDocument<192> doc;
+  doc["type"]    = "battery";
+  doc["mv"]      = int(v * 1000 + 0.5f);
+  doc["percent"] = pct;
+  doc["ts"]      = (uint32_t) millis();
+  broadcastJson(doc);
 }
 
 void handleWsMessage(void *arg, uint8_t *data, size_t len) {
@@ -31,21 +50,28 @@ void handleWsMessage(void *arg, uint8_t *data, size_t len) {
     doc["type"] = "dice_result";
     doc["value"] = v;
     broadcastJson(doc);
+
   } else if (msg == "startGame") {
     StaticJsonDocument<128> doc;
     doc["type"] = "start";
     doc["ok"] = true;
     broadcastJson(doc);
+
   } else if (msg == "switch") {
     StaticJsonDocument<128> doc;
     doc["type"] = "action";
     doc["action"] = "switch";
     broadcastJson(doc);
+
   } else if (msg == "done") {
     StaticJsonDocument<128> doc;
     doc["type"] = "action";
     doc["action"] = "done";
     broadcastJson(doc);
+
+  } else if (msg == "battery?") {
+    sendBatterySnapshot();
+
   } else {
     StaticJsonDocument<128> doc;
     doc["type"] = "echo";
@@ -63,8 +89,12 @@ void onEvent(AsyncWebSocket * serverPtr, AsyncWebSocketClient * client,
     doc["msg"] = "Willkommen beim Ludo-Server";
     String out; serializeJson(doc, out);
     client->text(out);
+
+    sendBatterySnapshot(); // beim Connect gleich Status schicken
+
   } else if (type == WS_EVT_DISCONNECT) {
     Serial.println("WS: Client disconnected");
+
   } else if (type == WS_EVT_DATA) {
     AwsFrameInfo *info = (AwsFrameInfo*)arg;
     if (info->final && info->index == 0 && info->len == len) {
@@ -85,15 +115,20 @@ void setupWiFi() {
     return;
   }
 
+  // Debug Files
   Serial.printf("index.html: %d\n", SPIFFS.exists("/index.html"));
   Serial.printf("register.html: %d\n", SPIFFS.exists("/register.html"));
   Serial.printf("dashboard.html: %d\n", SPIFFS.exists("/dashboard.html"));
+  Serial.printf("battery.html: %d\n", SPIFFS.exists("/battery.html"));
+  Serial.printf("profile.html: %d\n", SPIFFS.exists("/profile.html"));
+  Serial.printf("stats.html: %d\n", SPIFFS.exists("/stats.html"));
   Serial.printf("style.css: %d\n", SPIFFS.exists("/style.css"));
   Serial.printf("script.js: %d\n", SPIFFS.exists("/script.js"));
 
   ws.onEvent(onEvent);
   server.addHandler(&ws);
 
+  // Pages
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html", "text/html");
   });
@@ -106,7 +141,17 @@ void setupWiFi() {
   server.on("/dashboard.html", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/dashboard.html", "text/html");
   });
+  server.on("/profile.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/profile.html", "text/html");
+  });
+  server.on("/stats.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/stats.html", "text/html");
+  });
+  server.on("/battery.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/battery.html", "text/html");
+  });
 
+  // Assets
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css", "text/css");
   });
@@ -121,4 +166,17 @@ void setupWiFi() {
   server.begin();
   randomSeed(esp_random());
   Serial.println("Webserver + WebSocket gestartet!");
+
+  // Akku/LED initialisieren
+  batteryInit();
+  batteryLedsInit();
+}
+
+// zyklische Akku-Updates (~30 s)
+void wifi_ap_loop_batteryTick() {
+  const unsigned long periodMs = 5000; //alle 5 sekunden wird gemessen
+  if (millis() - lastBatMs >= periodMs) {
+    lastBatMs = millis();
+    sendBatterySnapshot();
+  }
 }

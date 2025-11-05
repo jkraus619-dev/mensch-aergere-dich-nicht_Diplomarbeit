@@ -8,31 +8,58 @@
   <script src="script.js" defer></script>
 </head>
 <body>
-  <!-- NAVBAR -->
   <nav class="navbar">
     <ul>
       <li><a href="dashboard.html">Dashboard</a></li>
-      <li><a href="#">Profil</a></li>
-      <li><a href="#">Statistiken</a></li>
-      <li style="margin-left:auto;"><a href="#" onclick="logout()">Logout</a></li>
+      <li><a href="profile.html">Profil</a></li>
+      <li><a href="stats.html">Statistiken</a></li>
+      <li><a href="battery.html">Akku</a></li>
+      <li class="nav-logout"><a class="logout-link" href="#" onclick="logout()">Logout</a></li>
     </ul>
   </nav>
 
-  <!-- DASHBOARD CONTENT -->
   <div class="dashboard-container">
-    <h1>Willkommen <span id="userDisplay"></span> 🎲</h1>
-    <h2>Statistiken</h2>
-    <ul>
-      <li>Total Spiele: <span id="totalGames">0</span></li>
-      <li>Gewonnen: <span id="wonGames">0</span></li>
-      <li>Verloren: <span id="lostGames">0</span></li>
-    </ul>
+    <h1>Willkommen, <span id="userDisplay"></span></h1>
+    <p class="dashboard-subtitle">Behalte deine Spiele im Blick und steuere den ESP32 direkt.</p>
 
-    <!-- Spiel starten Button -->
-    <button id="startGameBtn" onclick="startGame()">Spiel starten</button>
+    <section class="stat-overview">
+      <article class="stat-card">
+        <span class="stat-label">Spiele</span>
+        <span class="stat-value" id="totalGames">0</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Siege</span>
+        <span class="stat-value" id="wonGames">0</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Niederlagen</span>
+        <span class="stat-value" id="lostGames">0</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Siegquote</span>
+        <span class="stat-value" id="winRate">0.0%</span>
+      </article>
+    </section>
 
-    <!-- WebSocket Status -->
-    <div id="wsLog" class="log" style="margin-top:20px; color:blue;">WebSocket: nicht verbunden</div>
+    <section class="dashboard-actions">
+      <h2>Spielergebnis erfassen</h2>
+      <div class="actions-grid">
+        <button class="btn-win" onclick="recordMatchResult('win')">Sieg verbuchen</button>
+        <button class="btn-loss" onclick="recordMatchResult('loss')">Niederlage verbuchen</button>
+      </div>
+    </section>
+
+    <section class="dashboard-actions">
+      <h2>ESP32 steuern</h2>
+      <div class="actions-grid">
+        <button onclick="startGame()">Spiel starten</button>
+        <button onclick="sendWS('battery?')">Akku aktualisieren</button>
+        <a class="link-button" href="stats.html">Statistiken ansehen</a>
+      </div>
+    </section>
+
+    <div id="dashFeedback" class="dashboard-feedback"></div>
+    <div id="wsLog" class="log">WebSocket: nicht verbunden</div>
   </div>
 </body>
 </html>
