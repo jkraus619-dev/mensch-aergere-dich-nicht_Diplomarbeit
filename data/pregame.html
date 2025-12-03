@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Ludo ESP32 - Spiel erstellen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <nav class="navbar">
+    <ul>
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="profile.html">Profil</a></li>
+      <li><a href="stats.html">Statistiken</a></li>
+      <li><a href="battery.html">Akku</a></li>
+      <li class="nav-logout"><a class="logout-link" href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="dashboard-container pregame-container">
+    <h1>Spiel erstellen</h1>
+    <p class="dashboard-subtitle">Spieler treten ueber "Spiel beitreten" auf dem Dashboard bei.</p>
+
+    <section class="pregame-section">
+      <p class="pregame-hint">Alle Spieler muessen unterschiedliche Farben haben.</p>
+
+      <div id="playerList" class="lobby-list"></div>
+      <div id="pregameFeedback" class="dashboard-feedback"></div>
+
+      <div class="pregame-actions">
+        <button id="pregameStartBtn" type="button" onclick="launchGame()">Spiel starten</button>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

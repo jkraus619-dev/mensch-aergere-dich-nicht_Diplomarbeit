@@ -92,6 +92,124 @@
     target.textContent = message || '';
   }
 
+  var LOBBY_KEY = 'ludo_lobby';
+  var LOBBY_COLORS = [
+    { value: 'blue', label: 'Blau' },
+    { value: 'red', label: 'Rot' },
+    { value: 'yellow', label: 'Gelb' },
+    { value: 'green', label: 'Gruen' }
+  ];
+  var GAME_START_KEY = 'ludo_game_start';
+
+  function normalizeLobbyColor(value) {
+    var color = (value || '').toLowerCase();
+    var match = LOBBY_COLORS.some(function (entry) {
+      return entry.value === color;
+    });
+    return match ? color : '';
+  }
+
+  function emptyLobby() {
+    return { players: [] };
+  }
+
+  function loadLobby() {
+    try {
+      var parsed = JSON.parse(sessionStorage.getItem(LOBBY_KEY) || 'null');
+      if (!parsed || !Array.isArray(parsed.players)) {
+        return emptyLobby();
+      }
+      var players = parsed.players.slice(0, 4).map(function (entry) {
+        var name = entry && entry.name ? String(entry.name).trim() : '';
+        var color = normalizeLobbyColor(entry && entry.color);
+        if (!name) {
+          return null;
+        }
+        return { name: name, color: color };
+      }).filter(Boolean);
+      return { players: players };
+    } catch (err) {
+      console.warn('Lobby parse failed', err);
+      return emptyLobby();
+    }
+  }
+
+  function saveLobby(lobby) {
+    var payload = lobby && Array.isArray(lobby.players) ? lobby.players.slice(0, 4) : [];
+    sessionStorage.setItem(LOBBY_KEY, JSON.stringify({ players: payload }));
+  }
+
+  function clearLobby() {
+    sessionStorage.removeItem(LOBBY_KEY);
+  }
+
+  function usedColors(lobby) {
+    var players = lobby && Array.isArray(lobby.players) ? lobby.players : [];
+    var map = {};
+    players.forEach(function (p) {
+      if (p && p.color) {
+        map[p.color] = true;
+      }
+    });
+    return map;
+  }
+
+  function nextFreeColor(lobby) {
+    var used = usedColors(lobby);
+    var available = LOBBY_COLORS.find(function (entry) {
+      return !used[entry.value];
+    });
+    return available ? available.value : '';
+  }
+
+  function lobbyValidation(lobby) {
+    var players = lobby && Array.isArray(lobby.players) ? lobby.players : [];
+    if (players.length < 2) {
+      return { ok: false, message: 'Mindestens 2 Spieler anlegen.' };
+    }
+    var seenColors = {};
+    for (var i = 0; i < players.length; i += 1) {
+      var player = players[i];
+      if (!player || !player.name) {
+        return { ok: false, message: 'Spielernamen duerfen nicht leer sein.' };
+      }
+      if (!player.color) {
+        return { ok: false, message: 'Jeder Spieler braucht eine Farbe.' };
+      }
+      if (seenColors[player.color]) {
+        return { ok: false, message: 'Alle Farben muessen verschieden sein.' };
+      }
+      seenColors[player.color] = true;
+    }
+    return { ok: true, message: 'Bereit zum Start.' };
+  }
+
+  function findPlayerIndex(lobby, name) {
+    var players = lobby && Array.isArray(lobby.players) ? lobby.players : [];
+    return players.findIndex(function (p) {
+      return p && p.name && p.name.toLowerCase() === name.toLowerCase();
+    });
+  }
+
+  function joinCurrentUserToLobby(options) {
+    var username = getCurrentUser();
+    if (!username) {
+      return { ok: false, message: 'Bitte zuerst anmelden.', lobby: emptyLobby() };
+    }
+    var lobby = (options && options.reset) ? emptyLobby() : loadLobby();
+    var existingIndex = findPlayerIndex(lobby, username);
+    if (existingIndex >= 0) {
+      return { ok: true, lobby: lobby, joined: false };
+    }
+    if (lobby.players.length >= 4) {
+      return { ok: false, message: 'Lobby ist voll (max. 4 Spieler).', lobby: lobby };
+    }
+    var color = nextFreeColor(lobby);
+    lobby.players.push({ name: username, color: color });
+    saveLobby(lobby);
+    return { ok: true, lobby: lobby, joined: true };
+  }
+
   window.login = function () {
     var usernameInput = $('username');
     var passwordInput = $('password');
@@ -159,6 +277,8 @@
 
   window.logout = function () {
     clearCurrentUser();
+    clearLobby();
+    localStorage.removeItem(GAME_START_KEY);
     location.href = 'index.html';
   };
 
@@ -238,6 +358,37 @@
       }, 3000);
     }
   }
+
+  window.createLobbyAndOpen = function () {
+    var current = getCurrentUser();
+    if (!current) {
+      location.href = 'index.html';
+      return;
+    }
+    clearLobby();
+    localStorage.removeItem(GAME_START_KEY);
+    var result = joinCurrentUserToLobby({ reset: true });
+    if (!result.ok) {
+      showDashFeedback(result.message || 'Lobby konnte nicht erstellt werden.', '#b32121');
+      return;
+    }
+    showDashFeedback('Neue Lobby erstellt.', '#186e0e');
+    location.href = 'pregame.html';
+  };
+
+  window.joinLobbyFromDashboard = function () {
+    if (!getCurrentUser()) {
+      location.href = 'index.html';
+      return;
+    }
+    var result = joinCurrentUserToLobby();
+    if (!result.ok) {
+      showDashFeedback(result.message || 'Lobby beitreten fehlgeschlagen.', '#b32121');
+      return;
+    }
+    showDashFeedback(result.joined ? 'Lobby beigetreten.' : 'Bereits in der Lobby.', '#186e0e');
+    location.href = 'pregame.html';
+  };
 
   window.startGame = function () {
     if (sendWS('startGame')) {
@@ -606,6 +757,241 @@
 
   registerWsHandler(handleBatteryPayload);
 
+  function colorLabel(color) {
+    var match = LOBBY_COLORS.find(function (entry) {
+      return entry.value === color;
+    });
+    return match ? match.label : 'Unbekannt';
+  }
+
+  function renderLobby() {
+    var lobby = loadLobby();
+    var list = $('playerList');
+    var feedback = $('pregameFeedback');
+    var startBtn = $('pregameStartBtn');
+    if (!list) {
+      return;
+    }
+    list.textContent = '';
+    var used = usedColors(lobby);
+
+    if (!lobby.players.length) {
+      var empty = document.createElement('p');
+      empty.className = 'empty-state small';
+      empty.textContent = 'Noch keine Spieler beigetreten. Im Dashboard auf \"Spiel beitreten\" klicken.';
+      list.appendChild(empty);
+    }
+
+    lobby.players.forEach(function (player, idx) {
+      var row = document.createElement('div');
+      row.className = 'lobby-row';
+
+      var name = document.createElement('div');
+      name.className = 'lobby-name';
+      name.textContent = player.name;
+      row.appendChild(name);
+
+      var selectWrap = document.createElement('div');
+      selectWrap.className = 'lobby-color';
+      var select = document.createElement('select');
+      select.setAttribute('data-player-index', String(idx));
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Farbe waehlen';
+      select.appendChild(placeholder);
+      LOBBY_COLORS.forEach(function (choice) {
+        var option = document.createElement('option');
+        option.value = choice.value;
+        option.textContent = choice.label;
+        if (player.color === choice.value) {
+          option.selected = true;
+        }
+        if (used[choice.value] && player.color !== choice.value) {
+          option.disabled = true;
+        }
+        select.appendChild(option);
+      });
+      select.addEventListener('change', function (event) {
+        changeLobbyColor(idx, event.target.value);
+      });
+      selectWrap.appendChild(select);
+      row.appendChild(selectWrap);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn-ghost';
+      removeBtn.textContent = 'Entfernen';
+      removeBtn.addEventListener('click', function () {
+        removeLobbyPlayer(idx);
+      });
+      row.appendChild(removeBtn);
+
+      list.appendChild(row);
+    });
+
+    var validation = lobbyValidation(lobby);
+    if (startBtn) {
+      startBtn.disabled = !validation.ok;
+    }
+    setFeedback(feedback, validation.message || '', validation.ok ? '#186e0e' : '#b32121');
+  }
+
+  window.removeLobbyPlayer = function (index) {
+    var lobby = loadLobby();
+    if (index < 0 || index >= lobby.players.length) {
+      return;
+    }
+    lobby.players.splice(index, 1);
+    saveLobby(lobby);
+    renderLobby();
+  };
+
+  function changeLobbyColor(index, color) {
+    var lobby = loadLobby();
+    if (index < 0 || index >= lobby.players.length) {
+      return;
+    }
+    lobby.players[index].color = normalizeLobbyColor(color);
+    saveLobby(lobby);
+    renderLobby();
+  }
+
+  window.launchGame = function () {
+    var lobby = loadLobby();
+    var feedback = $('pregameFeedback');
+    var validation = lobbyValidation(lobby);
+    if (!validation.ok) {
+      setFeedback(feedback, validation.message, '#b32121');
+      return;
+    }
+    saveLobby(lobby);
+    setFeedback(feedback, 'Spiel wird gestartet...', '#186e0e');
+    try {
+      sendWS(JSON.stringify({ type: 'startGame', players: lobby.players }));
+    } catch (err) {
+      console.warn('StartGame senden fehlgeschlagen', err);
+    }
+    try {
+      localStorage.setItem(GAME_START_KEY, String(Date.now()));
+    } catch (errStore) {
+      console.warn('Konnte Spielstart-Flag nicht speichern', errStore);
+    }
+    setTimeout(function () {
+      location.href = 'game.html';
+    }, 250);
+  };
+
+  function renderGamePlayers() {
+    var lobby = loadLobby();
+    var list = $('gamePlayers');
+    var select = $('piecePlayer');
+    if (list) {
+      list.textContent = '';
+      if (!lobby.players.length) {
+        var empty = document.createElement('p');
+        empty.className = 'empty-state small';
+        empty.textContent = 'Keine Spielerliste gefunden. Erstelle zuerst eine Runde.';
+        list.appendChild(empty);
+      } else {
+        lobby.players.forEach(function (player) {
+          var item = document.createElement('li');
+          item.className = 'game-player';
+
+          var name = document.createElement('span');
+          name.className = 'game-player-name';
+          name.textContent = player.name;
+
+          var color = document.createElement('span');
+          color.className = 'color-pill color-' + (player.color || 'none');
+          color.textContent = player.color ? colorLabel(player.color) : 'Keine Farbe';
+
+          item.appendChild(name);
+          item.appendChild(color);
+          list.appendChild(item);
+        });
+      }
+    }
+    if (select) {
+      select.textContent = '';
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Spieler waehlen';
+      select.appendChild(placeholder);
+      lobby.players.forEach(function (player) {
+        var option = document.createElement('option');
+        option.value = player.name;
+        option.textContent = player.name + ' (' + (player.color ? colorLabel(player.color) : 'keine Farbe') + ')';
+        select.appendChild(option);
+      });
+    }
+  }
+
+  function getPieceSelection() {
+    var playerSelect = $('piecePlayer');
+    var figureSelect = $('pieceNumber');
+    var feedback = $('gameFeedback');
+    var playerName = playerSelect ? playerSelect.value : '';
+    var figure = figureSelect ? Number(figureSelect.value) : NaN;
+    if (!playerName) {
+      setFeedback(feedback, 'Bitte Spieler waehlen.', '#b32121');
+      return null;
+    }
+    if (!Number.isFinite(figure) || figure < 1 || figure > 4) {
+      setFeedback(feedback, 'Figur zwischen 1 und 4 auswaehlen.', '#b32121');
+      return null;
+    }
+    return { player: playerName, figure: figure, feedback: feedback };
+  }
+
+  window.rollDiceButton = function () {
+    var feedback = $('gameFeedback');
+    if (sendWS('roll')) {
+      setFeedback(feedback, 'Wuerfelanfrage gesendet.', '#186e0e');
+    }
+  };
+
+  window.blinkPiece = function () {
+    var selection = getPieceSelection();
+    if (!selection) {
+      return;
+    }
+    var cmd = 'select:' + selection.player + ':' + selection.figure;
+    if (sendWS(cmd)) {
+      setFeedback(selection.feedback, 'Figur wird markiert.', '#186e0e');
+    }
+  };
+
+  window.confirmSelection = function () {
+    var selection = getPieceSelection();
+    if (!selection) {
+      return;
+    }
+    var cmd = 'confirm:' + selection.player + ':' + selection.figure;
+    if (sendWS(cmd)) {
+      setFeedback(selection.feedback, 'Zug bestaetigt.', '#186e0e');
+    }
+  };
+
+  function handleDicePayload(message) {
+    if (!message || message.type !== 'dice_result') {
+      return;
+    }
+    var output = $('diceResult');
+    if (output) {
+      output.textContent = typeof message.value !== 'undefined' ? String(message.value) : '-';
+    }
+  }
+
+  registerWsHandler(handleDicePayload);
+
+  function listenForGameStart() {
+    window.addEventListener('storage', function (event) {
+      if (event.key === GAME_START_KEY && event.newValue && getCurrentUser()) {
+        location.href = 'game.html';
+      }
+    });
+  }
+
   function getPageName() {
     var path = (location.pathname || '').split('?')[0].split('#')[0];
     var segments = path.split('/');
@@ -743,11 +1129,38 @@
     });
   }
 
+  function initPregame() {
+    var username = requireSession();
+    if (!username) {
+      return;
+    }
+    joinCurrentUserToLobby();
+    renderLobby();
+    connectWS('pregame');
+  }
+
+  function initGame() {
+    var username = requireSession();
+    if (!username) {
+      return;
+    }
+    renderGamePlayers();
+    window.addEventListener('storage', function (event) {
+      if (event.key === LOBBY_KEY) {
+        renderGamePlayers();
+      }
+    });
+    connectWS('game');
+  }
+
   function initIndexLike() {
     clearCurrentUser();
+    clearLobby();
+    localStorage.removeItem(GAME_START_KEY);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    listenForGameStart();
     var page = getPageName();
     if (page === 'index.html' || page === 'register.html' || page === '') {
       initIndexLike();
@@ -759,6 +1172,10 @@
       initProfile();
     } else if (page === 'stats.html') {
       initStats();
+    } else if (page === 'pregame.html') {
+      initPregame();
+    } else if (page === 'game.html') {
+      initGame();
     }
   });
 

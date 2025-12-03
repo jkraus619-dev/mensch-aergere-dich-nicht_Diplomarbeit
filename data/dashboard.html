@@ -50,9 +50,11 @@
     </section>
 
     <section class="dashboard-actions">
-      <h2>ESP32 steuern</h2>
+      <h2>Spiel</h2>
       <div class="actions-grid">
-        <button onclick="startGame()">Spiel starten</button>
+        <button class="link-button" type="button" onclick="createLobbyAndOpen()">Spiel erstellen</button>
+        <button class="link-button secondary" type="button" onclick="joinLobbyFromDashboard()">Spiel beitreten</button>
+        <button onclick="sendWS('roll')">Wuerfeln (LCD)</button>
         <button onclick="sendWS('battery?')">Akku aktualisieren</button>
         <a class="link-button" href="stats.html">Statistiken ansehen</a>
       </div>

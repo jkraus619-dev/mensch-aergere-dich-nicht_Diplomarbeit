@@ -1,12 +1,13 @@
-#include "wifi_ap.h"
+﻿#include "wifi_ap.h"
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 
-#include "battery_adc.h"        // NEU
-#include "battery_WS2812B.h"     // NEU
+#include "battery_adc.h"
+#include "battery_WS2812B.h"
+#include "lcd_dice.h"
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -15,6 +16,7 @@ const char* ssid = "Ludo_ESP32";
 const char* password = "12345678";
 
 static unsigned long lastBatMs = 0;
+static bool batterySendRequested = false;
 
 void broadcastJson(const JsonDocument &doc) {
   String out;
@@ -45,12 +47,19 @@ void handleWsMessage(void *arg, uint8_t *data, size_t len) {
   Serial.printf("WS received: %s\n", msg.c_str());
 
   if (msg == "roll") {
-    int v = random(1,7);
-    StaticJsonDocument<128> doc;
-    doc["type"] = "dice_result";
-    doc["value"] = v;
-    broadcastJson(doc);
-
+    if (lcdDiceIsBusy()) {
+      StaticJsonDocument<96> doc;
+      doc["type"] = "busy";
+      doc["what"] = "dice";
+      broadcastJson(doc);
+    } else {
+      int v = random(1,7);
+      lcdDiceRoll(v);
+      StaticJsonDocument<128> doc;
+      doc["type"] = "dice_result";
+      doc["value"] = v;
+      broadcastJson(doc);
+    }
   } else if (msg == "startGame") {
     StaticJsonDocument<128> doc;
     doc["type"] = "start";
@@ -70,8 +79,7 @@ void handleWsMessage(void *arg, uint8_t *data, size_t len) {
     broadcastJson(doc);
 
   } else if (msg == "battery?") {
-    sendBatterySnapshot();
-
+    batterySendRequested = true; // Messung im Hauptloop triggern
   } else {
     StaticJsonDocument<128> doc;
     doc["type"] = "echo";
@@ -90,7 +98,7 @@ void onEvent(AsyncWebSocket * serverPtr, AsyncWebSocketClient * client,
     String out; serializeJson(doc, out);
     client->text(out);
 
-    sendBatterySnapshot(); // beim Connect gleich Status schicken
+    batterySendRequested = true; // Messung im Hauptloop triggern
 
   } else if (type == WS_EVT_DISCONNECT) {
     Serial.println("WS: Client disconnected");
@@ -111,7 +119,7 @@ void setupWiFi() {
   Serial.println(WiFi.softAPIP());
 
   if (!SPIFFS.begin(true)) {
-    Serial.println("Fehler beim Mounten von SPIFFS ❌");
+    Serial.println("Fehler beim Mounten von SPIFFS");
     return;
   }
 
@@ -150,6 +158,12 @@ void setupWiFi() {
   server.on("/battery.html", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/battery.html", "text/html");
   });
+  server.on("/pregame.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/pregame.html", "text/html");
+  });
+  server.on("/game.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/game.html", "text/html");
+  });
 
   // Assets
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -167,16 +181,26 @@ void setupWiFi() {
   randomSeed(esp_random());
   Serial.println("Webserver + WebSocket gestartet!");
 
-  // Akku/LED initialisieren
+  // Hardware initialisieren
   batteryInit();
   batteryLedsInit();
+  lcdDiceInit();
 }
 
-// zyklische Akku-Updates (~30 s)
+// zyklische Akku-Updates (~5 s)
 void wifi_ap_loop_batteryTick() {
-  const unsigned long periodMs = 5000; //alle 5 sekunden wird gemessen
+  const unsigned long periodMs = 3000;
+  bool doSend = false;
   if (millis() - lastBatMs >= periodMs) {
     lastBatMs = millis();
+    doSend = true;
+  }
+  if (batterySendRequested) {
+    batterySendRequested = false;
+    doSend = true;
+  }
+  if (doSend) {
     sendBatterySnapshot();
+    ws.cleanupClients();
   }
 }
