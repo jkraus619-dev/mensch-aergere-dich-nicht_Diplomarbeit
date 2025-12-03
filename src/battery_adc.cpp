@@ -2,12 +2,14 @@
 
 float BAT_VREF_CAL = 1.05f;  // Kalibrierfaktor, bei Bedarf mit Multimeter justieren
 
+// Initialisiert den ADC für die Akku-Messung
 void batteryInit() {
   analogReadResolution(12);
   analogSetPinAttenuation(BATTERY_ADC_PIN, ADC_11db); // stabilerer Bereich bis ~3.9 V am Pin
   pinMode(BATTERY_ADC_PIN, INPUT);
 }
 
+// Misst die Akkuspannung mit gleitendem Mittel und Ausreißer-Filter
 float batteryReadVoltage() {
   const int N = 64;
   uint32_t acc = 0;
@@ -27,6 +29,7 @@ float batteryReadVoltage() {
   return v_bat;
 }
 
+// Rechnet Akkuspannung in Prozent (kurve) um
 int batteryPercent(float v) {
   struct P { float volt; int prozent; } pts[] = {
     {3.00f,   0},

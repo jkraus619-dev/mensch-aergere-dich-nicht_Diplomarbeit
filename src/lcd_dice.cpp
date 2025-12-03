@@ -35,6 +35,7 @@ static const uint16_t BG_COLORS[] = {
 };
 static size_t bgIndex = 0;
 
+// Zeichnet das Würfel-Quadrat mit Rahmen in die Bildschirmmitte
 static void drawDiceBackground() {
   int originX = (tft.width() - DICE_SIZE) / 2;
   int originY = (tft.height() - DICE_SIZE) / 2;
@@ -46,12 +47,14 @@ static void drawDiceBackground() {
   tft.drawRoundRect(originX, originY, DICE_SIZE, DICE_SIZE, DICE_CORNER_RADIUS, COLOR_DICE_BORDER);
 }
 
+// Zeichnet einen einzelnen Punkt relativ zum Würfelraster
 static void drawDot(int dx, int dy) {
   int x = gridCenterX + dx * gridStep;
   int y = gridCenterY + dy * gridStep;
   tft.fillCircle(x, y, DICE_DOT_RADIUS, COLOR_DICE_DOT);
 }
 
+// Platziert Punkte für die gegebene Würfelseite 1..6
 static void drawDiceFace(int face) {
   drawDiceBackground();
 
@@ -80,6 +83,7 @@ static void drawDiceFace(int face) {
   }
 }
 
+// Startet das Display und zeigt einen Bereit-Hinweis
 void lcdDiceInit() {
   SPI.begin(LCD_TFT_SCLK, -1, LCD_TFT_MOSI);
   tft.begin(40000000);
@@ -92,6 +96,7 @@ void lcdDiceInit() {
   lcdReady = true;
 }
 
+// Spielt die Würfelanimation und endet auf finalValue
 void lcdDiceRoll(int finalValue) {
   if (lcdBusy) return;      // blockiert parallele Aufrufe
   lcdBusy = true;
@@ -127,6 +132,7 @@ void lcdDiceRoll(int finalValue) {
   lcdBusy = false;
 }
 
+// Meldet, ob gerade eine Würfelanimation läuft
 bool lcdDiceIsBusy() {
   return lcdBusy;
 }

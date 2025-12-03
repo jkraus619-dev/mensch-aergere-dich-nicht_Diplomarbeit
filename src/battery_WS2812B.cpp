@@ -3,14 +3,17 @@
 
 static Adafruit_NeoPixel strip(BATTERY_LED_COUNT, BATTERY_LED_PIN, NEO_GRB + NEO_KHZ800);
 
+// Hilfsfunktion zum schnellen Farbwert bauen
 static uint32_t col(uint8_t r, uint8_t g, uint8_t b){ return strip.Color(r,g,b); }
 
+// Initialisiert den LED-Streifen für die Akkuanzeige
 void batteryLedsInit() {
   strip.begin();
   strip.setBrightness(64);   // 0..255
   strip.show();
 }
 
+// Zeigt den Ladezustand als Balken und Warnblinken bei <10 %
 void batteryLedsShowPercent(int p) {
   int seg = (p <= 0) ? 0 : (p >= 100 ? BATTERY_LED_COUNT : (p + 9) / 10);
 

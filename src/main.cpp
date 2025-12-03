@@ -4,6 +4,7 @@
 // Vorwärtsdeklaration (Tick aus wifi_ap.cpp)
 void wifi_ap_loop_batteryTick();
 
+// Startet die Hardware und WiFi/AP-Stack
 void setup()
 {
   Serial.begin(115200);
@@ -11,6 +12,7 @@ void setup()
   setupWiFi();
 }
 
+// Zyklischer Loop: aktuell nur WS/Batterie-Tick
 void loop()
 {
   // Websocket + WiFi Tick

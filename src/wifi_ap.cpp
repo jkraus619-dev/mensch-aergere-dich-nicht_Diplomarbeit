@@ -18,12 +18,14 @@ const char* password = "12345678";
 static unsigned long lastBatMs = 0;
 static bool batterySendRequested = false;
 
+// Sendet ein JSON-Dokument an alle WebSocket-Clients
 void broadcastJson(const JsonDocument &doc) {
   String out;
   serializeJson(doc, out);
   ws.textAll(out);
 }
 
+// Liest Akku-Daten, schickt sie per WS und aktualisiert LEDs
 static void sendBatterySnapshot() {
   float v = batteryReadVoltage();
   int pct = batteryPercent(v);
@@ -38,6 +40,7 @@ static void sendBatterySnapshot() {
   broadcastJson(doc);
 }
 
+// Verarbeitet eingehende Text-WS-Nachrichten
 void handleWsMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->opcode != WS_TEXT) return;
@@ -88,6 +91,7 @@ void handleWsMessage(void *arg, uint8_t *data, size_t len) {
   }
 }
 
+// Handhabt WS-Events (connect/disconnect/data)
 void onEvent(AsyncWebSocket * serverPtr, AsyncWebSocketClient * client,
              AwsEventType type, void * arg, uint8_t *data, size_t len) {
   if (type == WS_EVT_CONNECT) {
@@ -111,6 +115,7 @@ void onEvent(AsyncWebSocket * serverPtr, AsyncWebSocketClient * client,
   }
 }
 
+// Startet Access Point, Webserver, Assets und Hardware
 void setupWiFi() {
   WiFi.softAP(ssid, password);
   Serial.println();
@@ -131,7 +136,7 @@ void setupWiFi() {
   Serial.printf("profile.html: %d\n", SPIFFS.exists("/profile.html"));
   Serial.printf("stats.html: %d\n", SPIFFS.exists("/stats.html"));
   Serial.printf("style.css: %d\n", SPIFFS.exists("/style.css"));
-  Serial.printf("script.js: %d\n", SPIFFS.exists("/script.js"));
+  Serial.printf("js/utils.js: %d\n", SPIFFS.exists("/js/utils.js"));
 
   ws.onEvent(onEvent);
   server.addHandler(&ws);
@@ -169,9 +174,7 @@ void setupWiFi() {
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css", "text/css");
   });
-  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/script.js", "application/javascript");
-  });
+  server.serveStatic("/js", SPIFFS, "/js");
 
   server.onNotFound([](AsyncWebServerRequest *request){
     request->send(404, "text/plain", "Not found");
